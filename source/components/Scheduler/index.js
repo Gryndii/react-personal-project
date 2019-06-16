@@ -11,7 +11,34 @@ import { api } from '../../REST'; // ! Импорт модуля API долже�
 import Checkbox from 'theme/assets/Checkbox';
 
 export default class Scheduler extends Component {
+    state = {
+        tasks: [
+            {
+                description: '',
+                isCompleted: false,
+                isFavourite: false,
+            },
+            {
+                description: '',
+                isCompleted: false,
+                isFavourite: false,
+            }
+        ],
+    };
+
     render () {
+        const {tasks} = this.state;
+        const tasksJSX = tasks.map((task, id) => {
+            return(
+                <Task
+                    description={task.description}
+                    isCompleted={task.isCompleted}
+                    isFavourite={task.isFavourite}
+                    key={id}
+                />
+            );
+        });
+
         return (
             <section className = { Styles.scheduler }>
                 <main>
@@ -25,7 +52,7 @@ export default class Scheduler extends Component {
                             <button>Add Task</button>
                         </form>
                         <ul>
-                            <Task/>
+                            {tasksJSX}
                         </ul>
                     </section>
                     <footer>
