@@ -24,25 +24,57 @@ export default class Task extends PureComponent {
 
     state = {
         isEditing: false,
+        editedMessage: this.props.message,
     };
 
     taskInput = createRef();
 
-    _handleEditing = () => {
-        this.setState(({isEditing}) => {
+    _handleEditing = (e) => {
+        const {id, message, _editTask} = this.props;
+        const {isEditing, editedMessage} = this.state;
+
+        if(isEditing && editedMessage && editedMessage!== message) _editTask(id, editedMessage);
+
+        this.setState((prevState) => {
             return {
-                isEditing: !isEditing,
+                isEditing: !prevState.isEditing,
             };
+        }, () => {
+            this.taskInput.current.focus();
         });
-        this.taskInput.current.focus();
+    };
+
+    _handleKeyPress = (e) => {
+        const {id, message, _editTask} = this.props;
+        const {editedMessage} = this.state;
+
+        if(e.key === 'Enter' && editedMessage && editedMessage!== message) {
+            _editTask(id, editedMessage);
+
+            this.setState({
+                isEditing: false,
+            });
+
+        } else if(e.key === 'Escape') {
+            this.setState({
+               isEditing: false,
+               editedMessage: message,
+            });
+        }
+    };
+
+    _getNewMessage = (e) => {
+        this.setState({
+            editedMessage: e.target.value,
+        });
     };
 
     render () {
         const {
-            _completeTask, _addToFavTask, _editTask, _removeTask, message, completed, favorite, id
+            _completeTask, _addToFavTask, _removeTask, completed, favorite, id
         } = this.props;
 
-        const {isEditing} = this.state;
+        const {isEditing, editedMessage} = this.state;
 
         return (
             <li className = { cx(Styles.task, {[Styles.completed] : completed}) }>
@@ -58,10 +90,12 @@ export default class Task extends PureComponent {
                     />
                     <input
                         type="text"
-                        value={message}
+                        value={editedMessage}
+                        maxLength="50"
                         ref={this.taskInput}
                         disabled={!isEditing}
-                        onChange={(e) => _editTask(id, e)}
+                        onChange={(e) => this._getNewMessage(e)}
+                        onKeyDown={(e) => this._handleKeyPress(e)}
                     />
                 </div>
                 <div className={Styles.actions}>
@@ -80,7 +114,7 @@ export default class Task extends PureComponent {
                         color1={'rgb(59, 142, 243)'}
                         color2={'rgb(0, 0, 0)'}
                         checked={isEditing}
-                        onClick={this._handleEditing}
+                        onClick={(e) => this._handleEditing(e)}
                     />
                     <Remove
                         inlineBlock

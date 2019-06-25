@@ -9,7 +9,8 @@ import Spinner from 'components/Spinner';
 import Styles from './styles.m.css';
 import { api } from '../../REST'; // ! Импорт модуля API должен иметь именно такой вид (import { api } from '../../REST')
 import Checkbox from 'theme/assets/Checkbox';
-import {BaseTaskModel, sortTasksByDate} from "instruments";
+import {BaseTaskModel, sortTasksByGroup, sortTasksByDate} from "instruments";
+import moment from 'moment';
 
 export default class Scheduler extends Component {
     state = {
@@ -19,12 +20,44 @@ export default class Scheduler extends Component {
         isLoading: false,
     };
 
+    componentDidMount() {
+        this._fetchTasks();
+    }
+
+    static getDerivedStateFromProps(nextProps, prevState) {
+        const sortedState = prevState;
+        sortedState.tasks = sortTasksByGroup(sortedState.tasks);
+
+        return sortedState;
+    }
+
+    _fetchTasks = async () => {
+        try {
+            this._setLoadingState(true);
+
+            const {fetchedTasks} = await api._fetchTasks();
+
+            this.setState({
+                tasks: fetchedTasks,
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
+    };
+
+    _setLoadingState = (state) => {
+        this.setState({
+            isLoading: state,
+        });
+    };
+
     _handleSearch = (e) => {
-        console.log('handle search');
         this.setState({searchMessage: e.target.value});
     };
 
-    _addTask = (e) => {
+    _addTask = async (e) => {
         e.preventDefault();
 
         const {newTaskMessage} = this.state;
@@ -33,46 +66,66 @@ export default class Scheduler extends Component {
 
         const newTask = new BaseTaskModel();
         newTask.message = newTaskMessage;
+        newTask.created = moment().unix();
 
-        this.setState(({tasks}) => {
-            return {
-                tasks: [newTask, ...tasks],
-                newTaskMessage: '',
-            };
-        });
+        try {
+            this._setLoadingState(true);
+
+            const {updatedTask} = await api._addTask(newTask);
+
+            this.setState(({tasks}) => {
+                return {
+                    tasks: [updatedTask, ...tasks],
+                    newTaskMessage: '',
+                };
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
     };
 
     _getNewTaskMessage = (e) => {
         this.setState({newTaskMessage: e.target.value});
     };
 
-    _removeTask = (id) => {
-        const {tasks} = this.state;
-        this.setState(({tasks}) => {
-            return {
-                tasks: tasks.filter((task) => task.id !== id),
-            };
-        });
+    _removeTask = async (id) => {
+        try {
+            this._setLoadingState(true);
+
+            await api._removeTask(id);
+
+            this.setState(({tasks}) => {
+                return {
+                    tasks: tasks.filter((task) => task.id !== id),
+                };
+            });
+        } catch({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
     };
 
     _completeTask = (id) => {
-        console.log('complete task');
-        this.setState(({tasks}) => {
-            return {
-                tasks: tasks.map((task) => {
-                    if(task.id === id) {
-                        task.completed = !task.completed;
-                        return task;
-                    } else {
-                        return task;
-                    }
-                }),
-            };
-        });
+
+
+        // this.setState(({tasks}) => {
+        //     return {
+        //         tasks: tasks.map((task) => {
+        //             if(task.id === id) {
+        //                 task.completed = !task.completed;
+        //                 return task;
+        //             } else {
+        //                 return task;
+        //             }
+        //         }),
+        //     };
+        // });
     };
 
     _addToFavTask = (id) => {
-        console.log('add to fav task');
         this.setState(({tasks}) => {
             return {
                 tasks: tasks.map((task) => {
@@ -87,9 +140,7 @@ export default class Scheduler extends Component {
         });
     };
 
-    _editTask = (id, e) => {
-        console.log('edit task');
-        const editedMessage = e.target.value;
+    _editTask = (id, editedMessage) => {
         this.setState(({tasks}) => {
             return {
                 tasks: tasks.map((task) => {
@@ -105,7 +156,6 @@ export default class Scheduler extends Component {
     };
 
     _completeAllTasks = () => {
-        console.log('complete all tasks');
         this.setState(({tasks}) => {
             return {
                 tasks: tasks.map((task) => {
@@ -118,7 +168,6 @@ export default class Scheduler extends Component {
 
     render () {
         const {tasks, newTaskMessage, searchMessage, isLoading} = this.state;
-        console.log('tasks', tasks);
         const tasksJSX = tasks.map((task) => {
             if(searchMessage && !task.message.includes(searchMessage)) return null;
             return(
@@ -169,7 +218,7 @@ export default class Scheduler extends Component {
                             color1={'rgb(54, 54, 54)'}
                             color2={'rgb(255, 255, 255)'}
                             color3={'rgb(54, 54, 54)'}
-
+                            checked={tasks.every((task) => task.completed)}
                             onClick={this._completeAllTasks}
                         />
                         <span className={Styles.completeAllTasks}>All tasks are completed</span>
