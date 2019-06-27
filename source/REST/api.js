@@ -37,14 +37,14 @@ export const api = {
         return {updatedTask, meta, message};
     },
 
-    async _updateTask(updatedTask) {
+    async _updateTask(editedTasks) {
         const response = await fetch(MAIN_URL, {
             method: 'PUT',
             headers: {
                 Authorization: TOKEN,
                 'Content-Type': 'application/json',
             },
-            body: [JSON.stringify(updatedTask)],
+            body: JSON.stringify(editedTasks),
         });
 
         if(response.status !== 200) {

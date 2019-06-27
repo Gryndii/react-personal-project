@@ -4,13 +4,17 @@ import React, { Component } from 'react';
 //Components
 import Task from 'components/Task';
 import Spinner from 'components/Spinner';
+import Catcher from 'components/Catcher';
 
 // Instruments
 import Styles from './styles.m.css';
 import { api } from '../../REST'; // ! Импорт модуля API должен иметь именно такой вид (import { api } from '../../REST')
 import Checkbox from 'theme/assets/Checkbox';
-import {BaseTaskModel, sortTasksByGroup, sortTasksByDate} from "instruments";
+import {BaseTaskModel, sortTasksByGroup} from "instruments";
 import moment from 'moment';
+import {CSSTransition, Transition, TransitionGroup} from 'react-transition-group';
+import {fromTo} from 'gsap/TweenMax';
+import FlipMove from 'react-flip-move';
 
 export default class Scheduler extends Component {
     state = {
@@ -108,62 +112,96 @@ export default class Scheduler extends Component {
         }
     };
 
-    _completeTask = (id) => {
+    _completeTask = async (id) => {
+        try {
+            this._setLoadingState(true);
 
+            const {tasks} = this.state;
+            const editedTasks = tasks.map((task) => {
+                if(task.id === id) task.completed = !task.completed;
+                return task;
+            });
+            const {updatedTasks} = await api._updateTask(editedTasks);
 
-        // this.setState(({tasks}) => {
-        //     return {
-        //         tasks: tasks.map((task) => {
-        //             if(task.id === id) {
-        //                 task.completed = !task.completed;
-        //                 return task;
-        //             } else {
-        //                 return task;
-        //             }
-        //         }),
-        //     };
-        // });
+            this.setState({
+                tasks: updatedTasks,
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
     };
 
-    _addToFavTask = (id) => {
-        this.setState(({tasks}) => {
-            return {
-                tasks: tasks.map((task) => {
-                    if(task.id === id) {
-                        task.favorite = !task.favorite;
-                        return task;
-                    } else {
-                        return task;
-                    }
-                }),
-            };
-        });
+    _addToFavTask = async (id) => {
+        try {
+            this._setLoadingState(true);
+
+            const {tasks} = this.state;
+            const editedTasks = tasks.map((task) => {
+                if(task.id === id) task.favorite = !task.favorite;
+                return task;
+            });
+            const {updatedTasks} = await api._updateTask(editedTasks);
+
+            this.setState({
+                tasks: updatedTasks,
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
     };
 
-    _editTask = (id, editedMessage) => {
-        this.setState(({tasks}) => {
-            return {
-                tasks: tasks.map((task) => {
-                    if(task.id === id) {
-                        task.message = editedMessage;
-                        return task;
-                    } else {
-                        return task;
-                    }
-                }),
-            };
-        });
+    _editTask = async (id, editedMessage) => {
+        try {
+            this._setLoadingState(true);
+
+            const {tasks} = this.state;
+            const editedTasks = tasks.map((task) => {
+                if(task.id === id) task.message = editedMessage;
+                return task;
+            });
+            const {updatedTasks} = await api._updateTask(editedTasks);
+
+            this.setState({
+                tasks: updatedTasks,
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
     };
 
-    _completeAllTasks = () => {
-        this.setState(({tasks}) => {
-            return {
-                tasks: tasks.map((task) => {
-                    task.completed = true;
-                    return task;
-                }),
-            };
-        });
+    _completeAllTasks = async () => {
+        try {
+            this._setLoadingState(true);
+
+            const {tasks} = this.state;
+            const editedTasks = tasks.map((task) => {
+                task.completed = true;
+                return task;
+            });
+            const {updatedTasks} = await api._updateTask(editedTasks);
+
+            this.setState({
+                tasks: updatedTasks,
+            });
+        } catch ({message}) {
+            console.log(message);
+        } finally {
+            this._setLoadingState(false);
+        }
+    };
+
+    _animateTaskAdd = (task) => {
+        fromTo(task, 0.5, {opacity: 0, scale: .7}, {opacity: 1, scale: 1});
+    };
+
+    _animateTaskRemove = (task) => {
+        fromTo(task, 0.5, {opacity: 1, scale: 1}, {opacity: 0, scale: .7});
     };
 
     render () {
@@ -186,45 +224,49 @@ export default class Scheduler extends Component {
         });
 
         return (
-            <section className = { Styles.scheduler }>
-                <main>
-                    {isLoading ? <Spinner/> : null}
-                    <header>
-                        <h1>Task Scheduler</h1>
-                        <input
-                            type="text"
-                            placeholder='Search'
-                            onChange={this._handleSearch}
-                            value={searchMessage}
-                        />
-                    </header>
-                    <section>
-                        <form action="" onSubmit={this._addTask}>
+            <Catcher>
+                <section className = { Styles.scheduler }>
+                    <main>
+                        {isLoading ? <Spinner/> : null}
+                        <header>
+                            <h1>Task Scheduler</h1>
                             <input
                                 type="text"
-                                placeholder='Task Description'
-                                onChange={this._getNewTaskMessage}
-                                value={newTaskMessage}
+                                placeholder='Search'
+                                onChange={this._handleSearch}
+                                value={searchMessage}
                             />
-                            <button>Add Task</button>
-                        </form>
-                        <ul>
-                            {tasksJSX}
-                        </ul>
-                    </section>
-                    <footer>
-                        <Checkbox
-                            className={Styles.toggleTaskCompletedState}
-                            color1={'rgb(54, 54, 54)'}
-                            color2={'rgb(255, 255, 255)'}
-                            color3={'rgb(54, 54, 54)'}
-                            checked={tasks.every((task) => task.completed)}
-                            onClick={this._completeAllTasks}
-                        />
-                        <span className={Styles.completeAllTasks}>All tasks are completed</span>
-                    </footer>
-                </main>
-            </section>
+                        </header>
+                        <section>
+                            <form action="" onSubmit={this._addTask}>
+                                <input
+                                    type="text"
+                                    placeholder='Task Description'
+                                    onChange={this._getNewTaskMessage}
+                                    value={newTaskMessage}
+                                />
+                                <button>Add Task</button>
+                            </form>
+                            <FlipMove
+                                typeName="ul"
+                            >
+                                {tasksJSX}
+                            </FlipMove>
+                        </section>
+                        <footer>
+                            <Checkbox
+                                className={Styles.toggleTaskCompletedState}
+                                color1={'rgb(54, 54, 54)'}
+                                color2={'rgb(255, 255, 255)'}
+                                color3={'rgb(54, 54, 54)'}
+                                checked={tasks.every((task) => task.completed)}
+                                onClick={this._completeAllTasks}
+                            />
+                            <span className={Styles.completeAllTasks}>All tasks are completed</span>
+                        </footer>
+                    </main>
+                </section>
+            </Catcher>
         );
     }
 }
