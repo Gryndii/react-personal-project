@@ -1,7 +1,9 @@
 import {ROOT_URL, MAIN_URL, TOKEN} from "REST/config";
+import {BaseTaskModel} from "instruments";
+import moment from 'moment';
 
 export const api = {
-    async _fetchTasks() {
+    async fetchTasks() {
         const response = await fetch(MAIN_URL, {
             method: 'GET',
             headers: {
@@ -15,10 +17,14 @@ export const api = {
 
         const {data: fetchedTasks, meta, message} = await response.json();
 
-        return {fetchedTasks, meta, message};
+        return fetchedTasks;
     },
 
-    async _addTask(newTask) {
+    async createTask(newTaskMessage) {
+        const newTask = new BaseTaskModel();
+        newTask.message = newTaskMessage;
+        newTask.created = moment().unix();
+
         const response = await fetch(MAIN_URL, {
             method: 'POST',
             headers: {
@@ -34,29 +40,29 @@ export const api = {
 
         const {data: updatedTask, meta, message} = await response.json();
 
-        return {updatedTask, meta, message};
+        return updatedTask;
     },
 
-    async _updateTask(editedTasks) {
+    async updateTask(editedTask) {
         const response = await fetch(MAIN_URL, {
             method: 'PUT',
             headers: {
                 Authorization: TOKEN,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(editedTasks),
+            body: JSON.stringify([editedTask]),
         });
 
         if(response.status !== 200) {
             throw new Error('Task wasn`t updated');
         }
 
-        const {data: updatedTasks, meta, message} = await response.json();
+        const {data: updatedTask, meta, message} = await response.json();
 
-        return {updatedTasks, meta, message};
+        return updatedTask[0];
     },
 
-    async _removeTask(postId) {
+    async removeTask(postId) {
         const response = await fetch(`${MAIN_URL}/${postId}`, {
             method: 'DELETE',
             headers: {
@@ -67,5 +73,32 @@ export const api = {
         if (response.status !== 200 && response.status !== 204) {
             throw new Error('Post wasn`t deleted');
         }
+    },
+
+    async completeAllTasks(tasks) {
+        const promiseAll = await Promise.all(
+            tasks.map(async (task) => {
+                task.completed = true;
+
+                const response = await fetch(MAIN_URL, {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: TOKEN,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify([task]),
+                });
+
+                if(response.status !== 200) {
+                    throw new Error('One of tasks wasn`t completed');
+                }
+
+                const {data:completedTask} = await response.json();
+
+                return completedTask[0];
+            })
+        );
+
+        return promiseAll;
     },
 };

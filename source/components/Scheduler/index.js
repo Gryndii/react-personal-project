@@ -10,22 +10,19 @@ import Catcher from 'components/Catcher';
 import Styles from './styles.m.css';
 import { api } from '../../REST'; // ! Импорт модуля API должен иметь именно такой вид (import { api } from '../../REST')
 import Checkbox from 'theme/assets/Checkbox';
-import {BaseTaskModel, sortTasksByGroup} from "instruments";
-import moment from 'moment';
-import {CSSTransition, Transition, TransitionGroup} from 'react-transition-group';
-import {fromTo} from 'gsap/TweenMax';
+import {sortTasksByGroup} from "instruments";
 import FlipMove from 'react-flip-move';
 
 export default class Scheduler extends Component {
     state = {
         tasks: [],
-        searchMessage: '',
+        tasksFilter: '',
         newTaskMessage: '',
-        isLoading: false,
+        isTasksFetching : true,
     };
 
     componentDidMount() {
-        this._fetchTasks();
+        this._fetchTasksAsync();
     }
 
     static getDerivedStateFromProps(nextProps, prevState) {
@@ -35,11 +32,11 @@ export default class Scheduler extends Component {
         return sortedState;
     }
 
-    _fetchTasks = async () => {
+    _fetchTasksAsync = async () => {
         try {
-            this._setLoadingState(true);
+            this._setTasksFetchingState(true);
 
-            const {fetchedTasks} = await api._fetchTasks();
+            const fetchedTasks = await api.fetchTasks();
 
             this.setState({
                 tasks: fetchedTasks,
@@ -47,58 +44,55 @@ export default class Scheduler extends Component {
         } catch ({message}) {
             console.log(message);
         } finally {
-            this._setLoadingState(false);
+            this._setTasksFetchingState(false);
         }
     };
 
-    _setLoadingState = (state) => {
+    _setTasksFetchingState = (state) => {
         this.setState({
-            isLoading: state,
+            isTasksFetching : state,
         });
     };
 
-    _handleSearch = (e) => {
-        this.setState({searchMessage: e.target.value});
+    _updateTasksFilter = (e) => {
+        const value = e.target.value.toLowerCase();
+        this.setState({tasksFilter: value});
     };
 
-    _addTask = async (e) => {
+    _createTaskAsync = async (e) => {
         e.preventDefault();
 
         const {newTaskMessage} = this.state;
 
-        if(!newTaskMessage) return;
-
-        const newTask = new BaseTaskModel();
-        newTask.message = newTaskMessage;
-        newTask.created = moment().unix();
+        if(!newTaskMessage) return null;
 
         try {
-            this._setLoadingState(true);
+            this._setTasksFetchingState(true);
 
-            const {updatedTask} = await api._addTask(newTask);
+            const addedTask = await api.createTask(newTaskMessage);
 
             this.setState(({tasks}) => {
                 return {
-                    tasks: [updatedTask, ...tasks],
+                    tasks: [addedTask, ...tasks],
                     newTaskMessage: '',
                 };
             });
         } catch ({message}) {
             console.log(message);
         } finally {
-            this._setLoadingState(false);
+            this._setTasksFetchingState(false);
         }
     };
 
-    _getNewTaskMessage = (e) => {
+    _updateNewTaskMessage = (e) => {
         this.setState({newTaskMessage: e.target.value});
     };
 
-    _removeTask = async (id) => {
+    _removeTaskAsync = async (id) => {
         try {
-            this._setLoadingState(true);
+            this._setTasksFetchingState(true);
 
-            await api._removeTask(id);
+            await api.removeTask(id);
 
             this.setState(({tasks}) => {
                 return {
@@ -108,112 +102,69 @@ export default class Scheduler extends Component {
         } catch({message}) {
             console.log(message);
         } finally {
-            this._setLoadingState(false);
+            this._setTasksFetchingState(false);
         }
     };
 
-    _completeTask = async (id) => {
+    _updateTaskAsync = async (taskToUpdate) => {
         try {
-            this._setLoadingState(true);
-
-            const {tasks} = this.state;
-            const editedTasks = tasks.map((task) => {
-                if(task.id === id) task.completed = !task.completed;
-                return task;
-            });
-            const {updatedTasks} = await api._updateTask(editedTasks);
-
-            this.setState({
-                tasks: updatedTasks,
+            this._setTasksFetchingState(true);
+            console.log('taskToUpdate', taskToUpdate);
+            const updatedTask = await api.updateTask(taskToUpdate);
+            console.log('updated tassk11', updatedTask);
+            this.setState(({tasks}) => {
+                return {
+                    tasks: tasks.map(task => task.id === updatedTask.id ? updatedTask : task),
+                };
             });
         } catch ({message}) {
             console.log(message);
         } finally {
-            this._setLoadingState(false);
+            this._setTasksFetchingState(false);
         }
     };
 
-    _addToFavTask = async (id) => {
+    _getAllCompleted = () => {
+      const {tasks} = this.state;
+      const isCompletedAll = tasks.every((task) => (task.completed));
+
+      return isCompletedAll;
+    };
+
+    _completeAllTasksAsync = async () => {
+        if(this._getAllCompleted()) return null;
+
         try {
-            this._setLoadingState(true);
+            this._setTasksFetchingState(true);
 
             const {tasks} = this.state;
-            const editedTasks = tasks.map((task) => {
-                if(task.id === id) task.favorite = !task.favorite;
-                return task;
-            });
-            const {updatedTasks} = await api._updateTask(editedTasks);
 
-            this.setState({
-                tasks: updatedTasks,
-            });
+            await api.completeAllTasks(tasks);
+
+            this.setState(({tasks}) => ({
+                tasks: tasks.map((task) => {
+                    task.completed = true;
+                    return task;
+                }),
+            }));
         } catch ({message}) {
             console.log(message);
         } finally {
-            this._setLoadingState(false);
+            this._setTasksFetchingState(false);
         }
-    };
-
-    _editTask = async (id, editedMessage) => {
-        try {
-            this._setLoadingState(true);
-
-            const {tasks} = this.state;
-            const editedTasks = tasks.map((task) => {
-                if(task.id === id) task.message = editedMessage;
-                return task;
-            });
-            const {updatedTasks} = await api._updateTask(editedTasks);
-
-            this.setState({
-                tasks: updatedTasks,
-            });
-        } catch ({message}) {
-            console.log(message);
-        } finally {
-            this._setLoadingState(false);
-        }
-    };
-
-    _completeAllTasks = async () => {
-        try {
-            this._setLoadingState(true);
-
-            const {tasks} = this.state;
-            const editedTasks = tasks.map((task) => {
-                task.completed = true;
-                return task;
-            });
-            const {updatedTasks} = await api._updateTask(editedTasks);
-
-            this.setState({
-                tasks: updatedTasks,
-            });
-        } catch ({message}) {
-            console.log(message);
-        } finally {
-            this._setLoadingState(false);
-        }
-    };
-
-    _animateTaskAdd = (task) => {
-        fromTo(task, 0.5, {opacity: 0, scale: .7}, {opacity: 1, scale: 1});
-    };
-
-    _animateTaskRemove = (task) => {
-        fromTo(task, 0.5, {opacity: 1, scale: 1}, {opacity: 0, scale: .7});
     };
 
     render () {
-        const {tasks, newTaskMessage, searchMessage, isLoading} = this.state;
+        const {tasks, newTaskMessage, tasksFilter, isTasksFetching } = this.state;
         const tasksJSX = tasks.map((task) => {
-            if(searchMessage && !task.message.includes(searchMessage)) return null;
+            if(tasksFilter && !task.message.includes(tasksFilter)) return null;
             return(
                 <Task
-                    _completeTask = {this._completeTask}
-                    _addToFavTask = {this._addToFavTask}
+                    _updateTaskAsync = {this._updateTaskAsync}
+                    _toggleTaskFavorite = {this._toggleTaskFavorite}
+                    _toggleTaskCompleted = {this._toggleTaskCompleted}
                     _editTask = {this._editTask}
-                    _removeTask = {this._removeTask}
+                    _removeTaskAsync = {this._removeTaskAsync}
                     message={task.message}
                     completed={task.completed}
                     favorite={task.favorite}
@@ -224,49 +175,54 @@ export default class Scheduler extends Component {
         });
 
         return (
-            <Catcher>
-                <section className = { Styles.scheduler }>
-                    <main>
-                        {isLoading ? <Spinner/> : null}
-                        <header>
-                            <h1>Task Scheduler</h1>
+            <section className = { Styles.scheduler }>
+                <Spinner isSpinning ={isTasksFetching }/>
+                <main>
+                    <header>
+                        <h1>Планировщик задач</h1>
+                        <input
+                            onChange={this._updateTasksFilter}
+                            placeholder='Поиск'
+                            type="search"
+                            value={tasksFilter}
+                        />
+                    </header>
+                    <section>
+                        <form onSubmit={this._createTaskAsync}>
                             <input
+                                maxLength={50}
+                                className="createTask"
+                                onChange={this._updateNewTaskMessage}
+                                placeholder='Описaние моей новой задачи'
                                 type="text"
-                                placeholder='Search'
-                                onChange={this._handleSearch}
-                                value={searchMessage}
+                                value={newTaskMessage}
                             />
-                        </header>
-                        <section>
-                            <form action="" onSubmit={this._addTask}>
-                                <input
-                                    type="text"
-                                    placeholder='Task Description'
-                                    onChange={this._getNewTaskMessage}
-                                    value={newTaskMessage}
-                                />
-                                <button>Add Task</button>
-                            </form>
-                            <FlipMove
-                                typeName="ul"
-                            >
-                                {tasksJSX}
-                            </FlipMove>
-                        </section>
-                        <footer>
-                            <Checkbox
-                                className={Styles.toggleTaskCompletedState}
-                                color1={'rgb(54, 54, 54)'}
-                                color2={'rgb(255, 255, 255)'}
-                                color3={'rgb(54, 54, 54)'}
-                                checked={tasks.every((task) => task.completed)}
-                                onClick={this._completeAllTasks}
-                            />
-                            <span className={Styles.completeAllTasks}>All tasks are completed</span>
-                        </footer>
-                    </main>
-                </section>
-            </Catcher>
+                            <button>Добавить задачу</button>
+                        </form>
+                        <div className="overlay">
+                            <ul>
+                                <FlipMove
+                                    duration={400}
+                                    enterAnimation="elevator"
+                                    leaveAnimation="elevator"
+                                    typeName="div"
+                                >
+                                    {tasksJSX}
+                                </FlipMove>
+                            </ul>
+                        </div>
+                    </section>
+                    <footer>
+                        <Checkbox
+                            color1={'#363636'}
+                            color2={'#fff'}
+                            checked={this._getAllCompleted()}
+                            onClick={this._completeAllTasksAsync }
+                        />
+                        <span className={Styles.completeAllTasks}>Все задачи выполнены</span>
+                    </footer>
+                </main>
+            </section>
         );
     }
 }

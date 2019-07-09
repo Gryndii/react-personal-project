@@ -29,27 +29,36 @@ export default class Task extends PureComponent {
 
     taskInput = createRef();
 
+    _setTaskEditingState = (state=true, callback) => {
+        this.setState({
+            isEditing: state,
+        }, () => {
+            if(typeof callback === 'function') callback();
+        });
+    };
+
     _handleEditing = (e) => {
-        const {id, message, _editTask} = this.props;
+        const {message, _updateTaskAsync} = this.props;
         const {isEditing, editedMessage} = this.state;
 
-        if(isEditing && editedMessage && editedMessage!== message) _editTask(id, editedMessage);
+        if(isEditing && editedMessage && editedMessage!== message) {
+            _updateTaskAsync({
+                ...this.props,
+                message: editedMessage,
+            });
+        }
 
-        this.setState((prevState) => {
-            return {
-                isEditing: !prevState.isEditing,
-            };
-        }, () => {
+        this._setTaskEditingState(!isEditing, () => {
             this.taskInput.current.focus();
         });
     };
 
-    _handleKeyPress = (e) => {
-        const {id, message, _editTask} = this.props;
+    _updateTaskMessageOnKeyDown = (e) => {
+        const {message} = this.props;
         const {editedMessage} = this.state;
 
         if(e.key === 'Enter' && editedMessage && editedMessage!== message) {
-            _editTask(id, editedMessage);
+            this._handleEditing();
 
             this.setState({
                 isEditing: false,
@@ -71,7 +80,7 @@ export default class Task extends PureComponent {
 
     render () {
         const {
-            _completeTask, _addToFavTask, _removeTask, completed, favorite, id
+            _toggleTaskFavorite, _toggleTaskCompleted, _updateTaskAsync, _removeTaskAsync, completed, favorite, id
         } = this.props;
 
         const {isEditing, editedMessage} = this.state;
@@ -82,45 +91,50 @@ export default class Task extends PureComponent {
                     <Checkbox
                         className={Styles.toggleTaskCompletedState}
                         inlineBlock
-                        color1={'rgb(59, 142, 243)'}
-                        color2={'rgb(255, 255, 255)'}
-                        color3={'rgb(59, 142, 243)'}
+                        color1="#3B8EF3"
+                        color2="#FFF"
                         checked={completed}
-                        onClick={() => _completeTask(id)}
+                        onClick={() => _updateTaskAsync({
+                            ...this.props,
+                            completed: !this.props.completed,
+                        })}
                     />
                     <input
                         type="text"
                         value={editedMessage}
-                        maxLength="50"
+                        maxLength={50}
                         ref={this.taskInput}
                         disabled={!isEditing}
                         onChange={(e) => this._getNewMessage(e)}
-                        onKeyDown={(e) => this._handleKeyPress(e)}
+                        onKeyDown={(e) => this._updateTaskMessageOnKeyDown(e)}
                     />
                 </div>
                 <div className={Styles.actions}>
                     <Star
                         className={Styles.toggleTaskFavoriteState}
                         inlineBlock
-                        color1={'rgb(59, 142, 243)'}
-                        color2={'rgb(0, 0, 0)'}
-                        color3={'rgb(59, 142, 243)'}
+                        color1={'#3B8EF3'}
+                        color2={'#000'}
                         checked={favorite}
-                        onClick={() => _addToFavTask(id)}
+                        onClick={() => _updateTaskAsync({
+                            ...this.props,
+                            favorite: !this.props.favorite,
+                        })}
                     />
                     <Edit
                         className={Styles.updateTaskMessageOnClick}
                         inlineBlock
-                        color1={'rgb(59, 142, 243)'}
-                        color2={'rgb(0, 0, 0)'}
+                        color1={'#3B8EF3'}
+                        color2={'#000'}
                         checked={isEditing}
                         onClick={(e) => this._handleEditing(e)}
                     />
                     <Remove
+                        className="removeTask"
                         inlineBlock
-                        color1={'rgb(59, 142, 243)'}
-                        color2={'rgb(0, 0, 0)'}
-                        onClick={() => _removeTask(id)}
+                        color1={'#3B8EF3'}
+                        color2={'#000'}
+                        onClick={() => _removeTaskAsync(id)}
                     />
                 </div>
             </li>
