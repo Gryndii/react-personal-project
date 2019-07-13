@@ -4,7 +4,6 @@ import React, { Component } from 'react';
 //Components
 import Task from 'components/Task';
 import Spinner from 'components/Spinner';
-import Catcher from 'components/Catcher';
 
 // Instruments
 import Styles from './styles.m.css';
@@ -109,12 +108,12 @@ export default class Scheduler extends Component {
     _updateTaskAsync = async (taskToUpdate) => {
         try {
             this._setTasksFetchingState(true);
-            console.log('taskToUpdate', taskToUpdate);
+
             const updatedTask = await api.updateTask(taskToUpdate);
-            console.log('updated tassk11', updatedTask);
+
             this.setState(({tasks}) => {
                 return {
-                    tasks: tasks.map(task => task.id === updatedTask.id ? updatedTask : task),
+                    tasks: tasks.map(task => task.id === updatedTask[0].id ? updatedTask[0] : task),
                 };
             });
         } catch ({message}) {
@@ -161,14 +160,8 @@ export default class Scheduler extends Component {
             return(
                 <Task
                     _updateTaskAsync = {this._updateTaskAsync}
-                    _toggleTaskFavorite = {this._toggleTaskFavorite}
-                    _toggleTaskCompleted = {this._toggleTaskCompleted}
-                    _editTask = {this._editTask}
                     _removeTaskAsync = {this._removeTaskAsync}
-                    message={task.message}
-                    completed={task.completed}
-                    favorite={task.favorite}
-                    id={task.id}
+                    {...task}
                     key={task.id}
                 />
             );

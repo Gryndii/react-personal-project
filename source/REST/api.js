@@ -59,7 +59,7 @@ export const api = {
 
         const {data: updatedTask, meta, message} = await response.json();
 
-        return updatedTask[0];
+        return updatedTask;
     },
 
     async removeTask(postId) {
@@ -92,13 +92,7 @@ export const api = {
                 if(response.status !== 200) {
                     throw new Error('One of tasks wasn`t completed');
                 }
-
-                const {data:completedTask} = await response.json();
-
-                return completedTask[0];
             })
         );
-
-        return promiseAll;
     },
 };
